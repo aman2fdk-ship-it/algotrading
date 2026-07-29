@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    background: #0a0e17;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-xl border;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .glass-panel-hover {
+    @apply transition-all duration-300;
+  }
+  .glass-panel-hover:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-input {
+    @apply w-full rounded-lg border px-4 py-3 text-forex-text placeholder-forex-text-muted
+           bg-forex-surface/50 transition-all duration-200 outline-none;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .glass-input:focus {
+    border-color: #00d4aa;
+    box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg font-semibold text-sm tracking-wide transition-all duration-200
+           bg-gradient-to-r from-forex-bullish to-emerald-400 text-gray-900
+           hover:shadow-lg hover:shadow-forex-bullish/20 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply px-6 py-3 rounded-lg font-medium text-sm tracking-wide transition-all duration-200
+           text-forex-text-dim hover:text-forex-text hover:bg-white/5;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-forex-bullish to-forex-cyan bg-clip-text text-transparent;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-forex-text-dim
+           transition-all duration-200 cursor-pointer text-sm font-medium;
+  }
+  .sidebar-link:hover {
+    @apply text-forex-text bg-white/5;
+  }
+  .sidebar-link.active {
+    @apply text-forex-bullish bg-forex-bullish-dim;
+  }
+}
