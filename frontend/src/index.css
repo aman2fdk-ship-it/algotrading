@@ -8,6 +8,47 @@
     padding: 0;
     box-sizing: border-box;
   }
+  /* Subtle fade-in for widget mount */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .fade-in {
+    animation: fade-in 0.4s ease-out both;
+  }
+  /* Price flash */
+  @keyframes price-flash-up {
+    from {
+      background-color: rgba(0, 212, 170, 0.25);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes price-flash-down {
+    from {
+      background-color: rgba(255, 77, 106, 0.25);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  .price-flash-up {
+    animation: price-flash-up 0.8s ease-out;
+  }
+  .price-flash-down {
+    animation: price-flash-down 0.8s ease-out;
+  }
+  /* Custom scrollbar for widget panels */
+  .widget-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
 
   html {
     scroll-behavior: smooth;

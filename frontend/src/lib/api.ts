@@ -16,6 +16,19 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * Redirect to the login page once per auth failure, clearing stale tokens.
+ */
+let redirectingToLogin = false;
+function handleUnauthorized(): void {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  if (!redirectingToLogin) {
+    redirectingToLogin = true;
+    window.location.href = '/login';
+  }
+}
+
 async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const { skipAuth, ...fetchOptions } = options;
   const headers: Record<string, string> = {
@@ -30,8 +43,13 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
     }
   }
 
-  const url = `${API_BASE}/api${endpoint}`;
+  const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, { ...fetchOptions, headers });
+
+  if (response.status === 401 && !skipAuth) {
+    handleUnauthorized();
+    throw new ApiError(401, 'Session expired — please log in again');
+  }
 
   if (!response.ok) {
     let detail = 'An error occurred';
@@ -46,6 +64,8 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
 
   return response.json();
 }
+
+/* ── Auth ─────────────────────────────────────────────────────────────────── */
 
 export interface TokenResponse {
   access_token: string;
@@ -70,7 +90,252 @@ export interface MessageResponse {
   message: string;
 }
 
+/* ── Market Data ──────────────────────────────────────────────────────────── */
+
+export interface SymbolResponse {
+  code: string;
+  name: string;
+  asset_type: string;
+  pip_size: number;
+  digits: number;
+  enabled: boolean;
+}
+
+export interface SymbolListResponse {
+  symbols: SymbolResponse[];
+  count: number;
+}
+
+export interface PriceResponse {
+  symbol: string;
+  bid: number;
+  ask: number;
+  spread: number;
+  timestamp: string;
+}
+
+export interface CandleResponse {
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  tick_volume: number;
+  real_volume: number;
+  spread: number;
+}
+
+export interface CandleListResponse {
+  candles: CandleResponse[];
+  symbol: string;
+  timeframe: string;
+  count: number;
+}
+
+export interface MarketStatusResponse {
+  symbol: string;
+  is_open: boolean;
+  session: string;
+  last_updated: string | null;
+}
+
+/* ── Indicators ───────────────────────────────────────────────────────────── */
+
+export interface IndicatorResponse {
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  ema_20: number | null;
+  ema_50: number | null;
+  ema_200: number | null;
+  supertrend_direction: number | null;
+  supertrend_value: number | null;
+  adx: number | null;
+  rsi: number | null;
+  macd_line: number | null;
+  macd_signal: number | null;
+  macd_histogram: number | null;
+  stoch_k: number | null;
+  stoch_d: number | null;
+  atr: number | null;
+  bb_upper: number | null;
+  bb_middle: number | null;
+  bb_lower: number | null;
+  vwap: number | null;
+  support_levels: number[] | null;
+  resistance_levels: number[] | null;
+  swing_high: number | null;
+  swing_low: number | null;
+  fib_236: number | null;
+  fib_382: number | null;
+  fib_500: number | null;
+  fib_618: number | null;
+  fib_786: number | null;
+}
+
+export interface IndicatorLatestResponse {
+  indicator: IndicatorResponse;
+}
+
+/* ── AI Decision Engine ───────────────────────────────────────────────────── */
+
+export interface TimeframeScoreDetail {
+  timeframe: string;
+  score: number;
+  weight: number;
+  category_scores: Record<string, number>;
+}
+
+export interface DecisionResult {
+  symbol: string;
+  decision: 'BUY' | 'SELL' | 'WAIT';
+  confidence: number;
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit_1: number | null;
+  take_profit_2: number | null;
+  risk_reward_ratio: number | null;
+  trend: string;
+  market_bias: string;
+  risk_level: string;
+  reasoning: string;
+  timeframe_scores: Record<string, number>;
+  timeframe_details: TimeframeScoreDetail[];
+  created_at: string | null;
+}
+
+export interface RecommendationResponse {
+  id: string;
+  symbol: string;
+  decision: 'BUY' | 'SELL' | 'WAIT';
+  confidence: number;
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit_1: number | null;
+  take_profit_2: number | null;
+  risk_reward_ratio: number | null;
+  trend: string;
+  market_bias: string;
+  risk_level: string;
+  reasoning: string;
+  timeframe_scores: Record<string, number>;
+  created_at: string;
+}
+
+export interface RecommendationListResponse {
+  recommendations: RecommendationResponse[];
+  count: number;
+}
+
+/* ── Risk Management ──────────────────────────────────────────────────────── */
+
+export interface RiskCalculateRequest {
+  account_balance: number;
+  risk_percentage: number;
+  entry_price: number;
+  stop_loss: number;
+  symbol: string;
+  leverage: number;
+}
+
+export interface RiskCalculateResponse {
+  symbol: string;
+  account_balance: number;
+  risk_percentage: number;
+  entry_price: number;
+  stop_loss: number;
+  leverage: number;
+  position_size: number;
+  risk_amount: number;
+  stop_loss_pips: number;
+  lot_size: number;
+  mini_lots: number;
+  micro_lots: number;
+  required_margin: number;
+  take_profit_1: number | null;
+  take_profit_2: number | null;
+  potential_profit_tp1: number | null;
+  potential_profit_tp2: number | null;
+  risk_reward_ratio_tp1: number | null;
+  risk_reward_ratio_tp2: number | null;
+  pip_size: number;
+  pip_value: number;
+}
+
+export interface PipValueItem {
+  symbol: string;
+  pip_size: number;
+  pip_value_per_lot: number;
+}
+
+export interface PipValuesResponse {
+  symbols: PipValueItem[];
+  count: number;
+}
+
+/* ── Backtest ─────────────────────────────────────────────────────────────── */
+
+export interface BacktestRunSummary {
+  id: string;
+  user_id: string;
+  symbol: string;
+  timeframe: string;
+  start_date: string;
+  end_date: string;
+  initial_balance: number;
+  risk_percentage: number;
+  final_balance: number;
+  total_trades: number;
+  win_rate: number;
+  profit_factor: number | null;
+  max_drawdown: number;
+  expectancy: number;
+  sharpe_ratio: number | null;
+  created_at: string;
+}
+
+export interface BacktestRunListResponse {
+  runs: BacktestRunSummary[];
+  count: number;
+}
+
+export interface EquityCurvePoint {
+  timestamp: string;
+  balance: number;
+}
+
+export interface BacktestTradeResponse {
+  id: string;
+  symbol: string;
+  timeframe: string;
+  direction: string;
+  entry_time: string;
+  exit_time: string;
+  entry_price: number;
+  exit_price: number;
+  position_size: number;
+  pnl: number;
+  pnl_pct: number;
+  exit_reason: string;
+  created_at: string;
+}
+
+export interface BacktestResultResponse extends BacktestRunSummary {
+  avg_win: number | null;
+  avg_loss: number | null;
+  largest_win: number | null;
+  largest_loss: number | null;
+  avg_hold_time: number | null;
+  equity_curve: EquityCurvePoint[];
+  trades: BacktestTradeResponse[];
+}
+
+/* ── API surface ──────────────────────────────────────────────────────────── */
+
 export const api = {
+  /* Auth */
   register: (data: { name: string; email: string; password: string; confirm_password: string }) =>
     request<TokenResponse>('/auth/register', {
       method: 'POST',
@@ -107,8 +372,56 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  logout: () =>
-    request<MessageResponse>('/auth/logout', { method: 'POST' }),
+  logout: () => request<MessageResponse>('/auth/logout', { method: 'POST' }),
+
+  /* Market Data */
+  getSymbols: () => request<SymbolListResponse>('/api/v1/symbols'),
+
+  getPrice: (symbol: string) => request<PriceResponse>(`/api/v1/price/${symbol}`),
+
+  getCandles: (symbol: string, timeframe: string, limit = 200) =>
+    request<CandleListResponse>(
+      `/api/v1/candles/${symbol}?timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`,
+    ),
+
+  getMarketStatus: () => request<{ statuses: MarketStatusResponse[]; count: number }>('/api/v1/market-status'),
+
+  /* Indicators */
+  getIndicators: (symbol: string, timeframe: string, limit = 100) =>
+    request<{ indicators: IndicatorResponse[]; symbol: string; timeframe: string; count: number }>(
+      `/api/v1/indicators/${symbol}?timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`,
+    ),
+
+  getLatestIndicator: (symbol: string, timeframe: string) =>
+    request<IndicatorLatestResponse>(
+      `/api/v1/indicators/${symbol}/latest?timeframe=${encodeURIComponent(timeframe)}`,
+    ),
+
+  /* AI Decision Engine */
+  getAIRecommendation: (symbol: string) =>
+    request<DecisionResult>('/api/v1/ai/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ symbol }),
+    }),
+
+  getAIRecommendations: (limit = 5) =>
+    request<RecommendationListResponse>(`/api/v1/ai/recommendations?limit=${limit}`),
+
+  /* Risk Management */
+  calculateRisk: (params: RiskCalculateRequest) =>
+    request<RiskCalculateResponse>('/api/v1/risk/calculate', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  getPipValues: () => request<PipValuesResponse>('/api/v1/risk/pip-values'),
+
+  /* Backtest */
+  getBacktestRuns: (limit = 5) =>
+    request<BacktestRunListResponse>(`/api/v1/backtest/runs?limit=${limit}`),
+
+  getBacktestRun: (runId: string) =>
+    request<BacktestResultResponse>(`/api/v1/backtest/runs/${runId}`),
 };
 
 export { ApiError };
