@@ -80,3 +80,26 @@ class CandleRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_range(
+        self,
+        symbol: str,
+        timeframe: str,
+        start: datetime,
+        end: datetime,
+    ) -> Sequence[Candle]:
+        """Get candles for a symbol+timeframe within a date range, chronological order."""
+        stmt = (
+            select(Candle)
+            .where(
+                and_(
+                    Candle.symbol == symbol,
+                    Candle.timeframe == timeframe,
+                    Candle.timestamp >= start,
+                    Candle.timestamp <= end,
+                )
+            )
+            .order_by(Candle.timestamp.asc())
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()

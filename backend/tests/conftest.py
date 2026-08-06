@@ -83,11 +83,28 @@ def mock_mt5_client():
     return mock
 
 
-@pytest.fixture
-def auth_headers():
-    """Return auth headers for a test user."""
+@pytest_asyncio.fixture
+async def auth_headers(db_session: AsyncSession):
+    """Return auth headers for a test user. Also creates the user in the DB."""
     from app.utils.security import create_access_token
+    from app.models.user import User
+    from sqlalchemy import select
 
     user_id = str(uuid.uuid4())
     token = create_access_token(data={"sub": user_id})
+
+    # Ensure the user exists in the DB
+    result = await db_session.execute(select(User).where(User.id == user_id))
+    existing = result.scalar_one_or_none()
+    if existing is None:
+        user = User(
+            id=user_id,
+            email=f"test-{user_id[:8]}@example.com",
+            name="Test User",
+            hashed_password="test_password_hash",
+            is_active=True,
+        )
+        db_session.add(user)
+        await db_session.flush()
+
     return {"Authorization": f"Bearer {token}"}
