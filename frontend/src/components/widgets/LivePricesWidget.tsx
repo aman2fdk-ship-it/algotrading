@@ -147,6 +147,8 @@ export default function LivePricesWidget() {
     } catch (err) {
       const message = err instanceof ApiError ? err.detail : 'Failed to load symbols';
       setError(message);
+      // Stop the loading skeleton so the error state becomes visible.
+      setIsLoading(false);
       if (!(err instanceof ApiError && err.status === 401)) toast.error(message);
     }
   }, []);
