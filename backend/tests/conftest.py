@@ -1,5 +1,8 @@
 """Test fixtures and configuration for forexai-terminal tests."""
 
+# Load optional service fixtures without changing the existing SQLite fixtures.
+pytest_plugins = ("tests.conftest_integration",)
+
 import asyncio
 import os
 import uuid
