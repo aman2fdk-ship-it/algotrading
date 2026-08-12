@@ -128,7 +128,7 @@ describe('StatRow', () => {
 describe('cssVars', () => {
   it('passes through a record of CSS custom properties', () => {
     const vars = cssVars({ '--w': '50%' });
-    expect(vars['--w']).toBe('50%');
+    expect((vars as Record<string, string>)['--w']).toBe('50%');
   });
 });
 

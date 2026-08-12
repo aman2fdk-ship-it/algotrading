@@ -54,7 +54,7 @@ describe('ChartWidget', () => {
     renderWithDashboard(<ChartWidget />);
 
     await waitFor(() => expect(widgetFactory).toHaveBeenCalled());
-    const config = widgetFactory.mock.calls[0]?.[0] as { symbol: string; interval: string };
+    const config = (widgetFactory.mock.calls[0] as any)[0] as { symbol: string; interval: string; theme: string; studies: string[] };
     expect(config.symbol).toBe('OANDA:EURUSD');
     expect(config.interval).toBe('60');
     expect(config.theme).toBe('dark');
@@ -69,7 +69,7 @@ describe('ChartWidget', () => {
     await waitFor(() => expect(widgetFactory).toHaveBeenCalledTimes(1));
     await user.click(screen.getByRole('tab', { name: 'M15' }));
     await waitFor(() => expect(widgetFactory).toHaveBeenCalledTimes(2));
-    const config = widgetFactory.mock.calls[1]?.[0] as { symbol: string; interval: string };
+    const config = (widgetFactory.mock.calls[1] as any)[0] as { symbol: string; interval: string };
     expect(config.interval).toBe('15');
   });
 
