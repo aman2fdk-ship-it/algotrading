@@ -145,6 +145,23 @@ cd backend && uvicorn app.main:app --reload
 cd frontend && npm run dev
 ```
 
+## Migrations
+
+Schema changes are managed with [Alembic](https://alembic.sqlalchemy.org/) (versioned, auditable migrations with downgrades). Migration scripts live in `backend/alembic/versions/`; the database URL is read from the same `DATABASE_URL` environment variable the app uses (never hardcoded in `alembic.ini`).
+
+```bash
+# Apply all migrations (production / staging)
+cd backend && alembic upgrade head
+
+# Roll back the most recent migration
+cd backend && alembic downgrade -1
+
+# Autogenerate a new migration from ORM model changes
+cd backend && alembic revision --autogenerate -m "describe change"
+```
+
+**Note:** the app still runs `Base.metadata.create_all` at startup — this is a development/test convenience so tests boot without running migrations. **Production should run `alembic upgrade head`** before starting the app; `create_all` will then be a no-op on an already-migrated database.
+
 ## Roadmap
 
 - [x] Auth & Dashboard Shell (MVP)
