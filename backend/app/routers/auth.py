@@ -74,8 +74,8 @@ async def login(request: UserLoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Account is inactive",
         )
 
-    # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    # Update last login (naive UTC to match the TIMESTAMP WITHOUT TIME ZONE column)
+    user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.flush()
 
     access_token = create_access_token(data={"sub": str(user.id)})

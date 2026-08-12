@@ -23,7 +23,7 @@ async def test_redis_cache_pattern(redis_client):
 
 async def test_redis_failure_recovery(redis_client):
     await redis_client.ping()
-    await redis_client.close()
+    await redis_client.aclose()
     # A new client models recovery after a dropped connection.
     import redis.asyncio as redis
     replacement = redis.from_url(REDIS_URL, decode_responses=True)
