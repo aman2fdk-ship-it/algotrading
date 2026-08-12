@@ -138,6 +138,9 @@ async def analyze_batch(
                 symbol=symbol,
                 decision="ERROR",
                 confidence=0.0,
+                trend="N/A",
+                market_bias="N/A",
+                risk_level="N/A",
                 reasoning=f"Symbol '{symbol}' is not supported.",
             ))
             continue
