@@ -132,7 +132,12 @@ class TestChangeOfCharacter:
         candles.append(make_candle(1.1210, 1.1230, 1.1190, 1.1220, ts_offset=ts)); ts += 1
         candles.append(make_candle(1.1220, 1.1240, 1.1200, 1.1230, ts_offset=ts)); ts += 1
         # Sharp break below swing low (1.1180) — bearish BOS
-        candles.append(make_candle(1.1200, 1.1210, 1.1080, 1.1090, ts_offset=ts))
+        candles.append(make_candle(1.1230, 1.1245, 1.1195, 1.1235, ts_offset=ts)); ts += 1
+        candles.append(make_candle(1.1235, 1.1240, 1.1190, 1.1210, ts_offset=ts)); ts += 1
+        candles.append(make_candle(1.1210, 1.1225, 1.1192, 1.1215, ts_offset=ts)); ts += 1
+        candles.append(make_candle(1.1215, 1.1220, 1.1185, 1.1190, ts_offset=ts)); ts += 1
+        candles.append(make_candle(1.1190, 1.1200, 1.1182, 1.1195, ts_offset=ts)); ts += 1
+        candles.append(make_candle(1.1195, 1.1200, 1.1080, 1.1090, ts_offset=ts))
 
         results = detect_choch(candles, "EURUSD", "H1", lookback=5)
         assert len(results) >= 1, (

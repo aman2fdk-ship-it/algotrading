@@ -19,7 +19,7 @@ async def test_source_error_does_not_update_status():
 
 @pytest.mark.asyncio
 async def test_open_to_closed_transition_is_persisted():
-    client=MagicMock(); client.get_symbols=AsyncMock(return_value=[]); monitor=MarketStatusMonitor(client); current=MagicMock(is_open=True,session="London")
+    client=MagicMock(); client.get_symbols=AsyncMock(return_value=["GBPUSD"]); monitor=MarketStatusMonitor(client); current=MagicMock(is_open=True,session="London")
     repo=MagicMock(); repo.get_by_symbol=AsyncMock(return_value=current); repo.upsert_status=AsyncMock(); session=MagicMock(); session.commit=AsyncMock()
     class C:
         async def __aenter__(self): return session

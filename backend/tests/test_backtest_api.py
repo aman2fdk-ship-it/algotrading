@@ -365,7 +365,7 @@ class TestGetRun:
         """Get full detail with trades."""
         import uuid as uuid_mod
         run_id = str(uuid_mod.uuid4())
-        user_id = "00000000-0000-0000-0000-000000000001"
+        user_id = await _ensure_test_user(db_session, auth_headers)
 
         run = _seed_backtest_run(db_session, user_id=user_id, id=run_id)
         # Add a couple of trades
@@ -464,7 +464,7 @@ class TestDeleteRun:
         """Delete a backtest run that belongs to the user."""
         import uuid as uuid_mod
         run_id = str(uuid_mod.uuid4())
-        user_id = "00000000-0000-0000-0000-000000000001"
+        user_id = await _ensure_test_user(db_session, auth_headers)
 
         _seed_backtest_run(db_session, user_id=user_id, id=run_id)
         await db_session.commit()
