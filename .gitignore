@@ -9,3 +9,4 @@ __pycache__/
 postgres_data/
 redis_data/
 backend/test.db
+backend/integration_test.db
