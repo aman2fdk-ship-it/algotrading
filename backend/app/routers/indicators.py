@@ -79,11 +79,11 @@ async def get_latest_indicator(
     indicator = await repo.get_latest(symbol, timeframe)
 
     if indicator is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No indicator data found for {symbol}/{timeframe}. "
-            f"Ensure the indicator calculator is running and candles exist.",
-        )
+        # Valid symbol+timeframe with no rows yet is a healthy "no data" state,
+        # not an error: the indicator calculator may not have processed this
+        # timeframe yet. Return 200 with a null indicator so the UI can render
+        # an empty state instead of a 404 storm.
+        return IndicatorLatestResponse(indicator=None)
 
     return IndicatorLatestResponse(
         indicator=IndicatorResponse.model_validate(indicator)

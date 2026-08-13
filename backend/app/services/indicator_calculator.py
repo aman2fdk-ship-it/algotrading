@@ -162,8 +162,13 @@ class IndicatorCalculatorService:
             14 + 1,  # ATR/ADX/RSI
         )
 
-        # Only calculate for candles where we have enough history
-        for i in range(oldest_needed, len(candles)):
+        # Only calculate for candles where we have enough history. Start at
+        # oldest_needed - 1 so the FIRST candle with full history (index
+        # oldest_needed - 1, i.e. the 200th candle for EMA200) is also
+        # calculated — previously the loop started at oldest_needed, which
+        # produced ZERO rows for any symbol+timeframe with exactly
+        # oldest_needed candles (e.g. a fresh backfill of 200 H1 candles).
+        for i in range(max(0, oldest_needed - 1), len(candles)):
             target_candle = candles[i]
             # Skip if already exists
             exists = await indicator_repo.exists(

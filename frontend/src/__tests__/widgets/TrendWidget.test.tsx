@@ -125,4 +125,14 @@ describe('TrendWidget', () => {
     expect(await screen.findByTestId('error-state')).toBeInTheDocument();
     expect(screen.getByText('Indicator feed down')).toBeInTheDocument();
   });
+
+  it('shows an empty state when the API returns 200 with a null indicator', async () => {
+    // Backend contract: valid symbol+timeframe with no rows -> 200, indicator: null.
+    vi.mocked(api.getLatestIndicator).mockResolvedValue({ indicator: null });
+    renderWithDashboard(<TrendWidget />);
+    expect(
+      await screen.findByText(/No indicator data yet/),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('error-state')).not.toBeInTheDocument();
+  });
 });

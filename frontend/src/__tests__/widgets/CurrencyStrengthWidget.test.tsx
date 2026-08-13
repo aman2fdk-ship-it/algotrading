@@ -100,6 +100,16 @@ describe('CurrencyStrengthWidget', () => {
     expect(screen.getAllByText('—').length).toBe(SUPPORTED_SYMBOLS.length);
   });
 
+  it('handles a null indicator response (200 + no data) without crashing', async () => {
+    // Backend contract: valid symbol+timeframe with no rows -> 200, indicator: null.
+    vi.mocked(api.getLatestIndicator).mockResolvedValue({ indicator: null });
+    renderWithDashboard(<CurrencyStrengthWidget />);
+    // All rows still render, each showing the no-data dash, no uncaught error.
+    expect(await screen.findByText('EUR/USD')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBe(SUPPORTED_SYMBOLS.length);
+    expect(screen.queryByTestId('error-state')).not.toBeInTheDocument();
+  });
+
   it('shows the loading skeleton initially', () => {
     vi.mocked(api.getLatestIndicator).mockImplementation(() => new Promise(() => {}));
     renderWithDashboard(<CurrencyStrengthWidget />);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { api, ApiError, type IndicatorResponse } from '@/lib/api';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { WidgetCard, WidgetSkeleton, ErrorState, MiniBar, StatRow, cn } from './shared';
+import { WidgetCard, WidgetSkeleton, ErrorState, EmptyState, MiniBar, StatRow, cn } from './shared';
 import { formatPrice } from '@/lib/format';
 
 type TrendDir = 'Bullish' | 'Bearish' | 'Neutral';
@@ -191,7 +191,9 @@ export default function TrendWidget() {
             )}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <EmptyState message="No indicator data yet — the indicator calculator is still warming up." />
+      )}
     </WidgetCard>
   );
 }

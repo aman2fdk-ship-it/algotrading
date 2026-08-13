@@ -176,7 +176,8 @@ export interface IndicatorResponse {
 }
 
 export interface IndicatorLatestResponse {
-  indicator: IndicatorResponse;
+  /** null when the symbol+timeframe is valid but no indicator rows exist yet. */
+  indicator: IndicatorResponse | null;
 }
 
 /* ── AI Decision Engine ───────────────────────────────────────────────────── */
