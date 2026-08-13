@@ -168,8 +168,11 @@ class TestIndicatorsAPI:
         assert indicator["rsi"] == 55.0
 
     @pytest.mark.asyncio
-    async def test_get_latest_indicator_not_found(self, client: AsyncClient, db_session):
-        """Latest indicator endpoint returns 404 when no data exists."""
+    async def test_get_latest_indicator_no_data_returns_null(
+        self, client: AsyncClient, db_session
+    ):
+        """Valid symbol+timeframe with no rows returns 200 + null indicator
+        (no-data is a healthy state, NOT a 404)."""
         user = await _create_test_user(db_session)
         headers = _auth_headers_for(user)
 
@@ -177,7 +180,37 @@ class TestIndicatorsAPI:
             "/api/v1/indicators/EURUSD/latest?timeframe=H1",
             headers=headers,
         )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["indicator"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_latest_indicator_invalid_symbol_404(
+        self, client: AsyncClient, db_session
+    ):
+        """Unsupported symbol on /latest still returns 404."""
+        user = await _create_test_user(db_session)
+        headers = _auth_headers_for(user)
+
+        response = await client.get(
+            "/api/v1/indicators/NOTASYM/latest?timeframe=H1",
+            headers=headers,
+        )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_latest_indicator_invalid_timeframe_400(
+        self, client: AsyncClient, db_session
+    ):
+        """Unsupported timeframe on /latest still returns 400."""
+        user = await _create_test_user(db_session)
+        headers = _auth_headers_for(user)
+
+        response = await client.get(
+            "/api/v1/indicators/EURUSD/latest?timeframe=W1",
+            headers=headers,
+        )
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_support_resistance(self, client: AsyncClient, db_session):

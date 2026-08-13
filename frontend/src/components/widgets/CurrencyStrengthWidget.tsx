@@ -33,8 +33,9 @@ export default function CurrencyStrengthWidget() {
         const code = SUPPORTED_SYMBOLS[i];
         if (!code) return;
         if (res.status === 'fulfilled') {
-          const ind: IndicatorResponse = res.value.indicator;
-          const rsi = ind.rsi;
+          const ind: IndicatorResponse | null = res.value.indicator;
+          // Valid symbol+timeframe with no indicator rows yet -> 200 + null.
+          const rsi = ind === null ? null : ind.rsi;
           next.push({
             symbol: code,
             name: formatSymbolLabel(code),

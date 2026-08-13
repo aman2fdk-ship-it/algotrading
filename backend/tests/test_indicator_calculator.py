@@ -20,7 +20,19 @@ async def test_batch_calculation_stores_indicators():
     candle_repo=MagicMock(); candle_repo.get_candles=AsyncMock(return_value=candles(202))
     indicator_repo=MagicMock(); indicator_repo.exists=AsyncMock(return_value=False); indicator_repo.upsert=AsyncMock()
     await service._backfill_symbol_tf(MagicMock(),candle_repo,indicator_repo,"EURUSD","M1")
-    assert indicator_repo.upsert.await_count == 2 and service.stats["calculated"] == 2
+    # range(max(0, 199), 202) -> candles at indexes 199..201 = 3 rows
+    assert indicator_repo.upsert.await_count == 3 and service.stats["calculated"] == 3
+
+@pytest.mark.asyncio
+async def test_exactly_minimum_candles_backfills_last_candle():
+    """Regression: a symbol+timeframe with EXACTLY 200 candles (EMA200 history)
+    must still get its last candle calculated — previously the loop started at
+    index 200, producing ZERO rows and causing 404s for valid H1 data."""
+    service=IndicatorCalculatorService(); service._analysis.calculate_all=MagicMock(return_value="indicator")
+    candle_repo=MagicMock(); candle_repo.get_candles=AsyncMock(return_value=candles(200))
+    indicator_repo=MagicMock(); indicator_repo.exists=AsyncMock(return_value=False); indicator_repo.upsert=AsyncMock()
+    await service._backfill_symbol_tf(MagicMock(),candle_repo,indicator_repo,"EURUSD","H1")
+    assert indicator_repo.upsert.await_count == 1 and service.stats["calculated"] == 1
 
 @pytest.mark.asyncio
 async def test_insufficient_candles_are_skipped():

@@ -62,9 +62,14 @@ class IndicatorListResponse(BaseModel):
 
 
 class IndicatorLatestResponse(BaseModel):
-    """Single latest indicator snapshot."""
+    """Single latest indicator snapshot.
 
-    indicator: IndicatorResponse
+    ``indicator`` is None when the symbol+timeframe is valid but no indicator
+    rows exist yet (e.g. the indicator calculator has not processed that
+    timeframe) — callers should treat that as "no data yet", not an error.
+    """
+
+    indicator: Optional[IndicatorResponse] = None
 
 
 class SupportResistanceResponse(BaseModel):
