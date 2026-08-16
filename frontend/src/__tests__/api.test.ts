@@ -205,4 +205,53 @@ describe('api', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('P1 widget endpoints (ticks / SMC / fibonacci)', () => {
+    it('getTicks fetches /api/v1/ticks/{symbol} with limit', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ ticks: [{ symbol: 'EURUSD', timestamp: 't', bid: 1.1, ask: 1.1002, spread: 2, volume: 5 }], symbol: 'EURUSD', count: 1 }),
+      );
+      const res = await api.getTicks('EURUSD', 30);
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/ticks/EURUSD?limit=30');
+      expect(res.count).toBe(1);
+      expect(res.ticks[0]?.bid).toBe(1.1);
+    });
+    it('getSmcOrderBlocks builds the order-blocks URL with timeframe and limit', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ order_blocks: [], symbol: 'EURUSD', timeframe: 'H1', count: 0 }));
+      const res = await api.getSmcOrderBlocks('EURUSD', 'H1', 20);
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/smc/EURUSD/order-blocks?timeframe=H1&limit=20');
+      expect(res.count).toBe(0);
+    });
+    it('getSmcLiquidity builds the liquidity URL', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ liquidity_sweeps: [], symbol: 'EURUSD', timeframe: 'H1', count: 0 }));
+      await api.getSmcLiquidity('EURUSD', 'H1');
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/smc/EURUSD/liquidity?timeframe=H1&limit=20');
+    });
+    it('getSmcFvg builds the fvg URL', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ fair_value_gaps: [], symbol: 'EURUSD', timeframe: 'H1', count: 0 }));
+      await api.getSmcFvg('EURUSD', 'H1', 10);
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/smc/EURUSD/fvg?timeframe=H1&limit=10');
+    });
+    it('getFibonacci fetches /api/v1/fibonacci/{symbol} with timeframe', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ symbol: 'EURUSD', timeframe: 'H1', timestamp: 't', fib_0: 0, fib_236: 1.09, fib_382: 1.092, fib_500: 1.094, fib_618: 1.096, fib_786: 1.098, fib_1: 0 }),
+      );
+      const res = await api.getFibonacci('EURUSD', 'H1');
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/fibonacci/EURUSD?timeframe=H1');
+      expect(res.fib_618).toBe(1.096);
+    });
+    it('getSupportResistance fetches /api/v1/support-resistance/{symbol} with timeframe', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ symbol: 'EURUSD', timeframe: 'H1', timestamp: 't', support_levels: [1.08], resistance_levels: [1.11] }),
+      );
+      const res = await api.getSupportResistance('EURUSD', 'H1');
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/support-resistance/EURUSD?timeframe=H1');
+      expect(res.support_levels).toEqual([1.08]);
+    });
+    it('encodes timeframe values in URLs', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ symbol: 'EURUSD', timeframe: 'M5', timestamp: 't', support_levels: [], resistance_levels: [] }));
+      await api.getSupportResistance('EURUSD', 'M5');
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/support-resistance/EURUSD?timeframe=M5');
+    });
+  });
 });
