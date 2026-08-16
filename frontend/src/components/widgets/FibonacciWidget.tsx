@@ -76,7 +76,9 @@ export default function FibonacciWidget() {
     }
 
     if (fibFailed && srFailed) {
-      const first = (fibRes.reason ?? srRes.reason) as unknown;
+      const first =
+        ('reason' in fibRes ? fibRes.reason : null) ??
+        ('reason' in srRes ? srRes.reason : null);
       const message =
         first instanceof ApiError
           ? first.detail
