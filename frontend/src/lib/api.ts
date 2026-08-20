@@ -141,6 +141,72 @@ export interface MarketStatusResponse {
   last_updated: string | null;
 }
 
+export interface TickResponse {
+  symbol: string;
+  timestamp: string;
+  bid: number;
+  ask: number;
+  spread: number;
+  volume: number;
+}
+export interface TickListResponse {
+  ticks: TickResponse[];
+  symbol: string;
+  count: number;
+}
+/* SMC (Smart Money Concepts) */
+export interface SMCStructureResponse {
+  id: string;
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  structure_type: string;
+  direction: string;
+  price_low: number | null;
+  price_high: number | null;
+  price_mid: number | null;
+  key_level: number | null;
+  confidence: number;
+  details: string | null;
+  created_at: string;
+}
+export interface SMCOrderBlockResponse {
+  order_blocks: SMCStructureResponse[];
+  symbol: string;
+  timeframe: string;
+  count: number;
+}
+export interface SMCLiquidityResponse {
+  liquidity_sweeps: SMCStructureResponse[];
+  symbol: string;
+  timeframe: string;
+  count: number;
+}
+export interface SMCFVGResponse {
+  fair_value_gaps: SMCStructureResponse[];
+  symbol: string;
+  timeframe: string;
+  count: number;
+}
+export interface SupportResistanceResponse {
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  support_levels: number[];
+  resistance_levels: number[];
+}
+export interface FibonacciResponse {
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  fib_0: number;
+  fib_236: number;
+  fib_382: number;
+  fib_500: number;
+  fib_618: number;
+  fib_786: number;
+  fib_1: number;
+}
 /* ── Indicators ───────────────────────────────────────────────────────────── */
 
 export interface IndicatorResponse {
@@ -386,6 +452,29 @@ export const api = {
     ),
 
   getMarketStatus: () => request<{ statuses: MarketStatusResponse[]; count: number }>('/api/v1/market-status'),
+  getTicks: (symbol: string, limit = 50) =>
+    request<TickListResponse>(`/api/v1/ticks/${symbol}?limit=${limit}`),
+  /* SMC */
+  getSmcOrderBlocks: (symbol: string, timeframe: string, limit = 20) =>
+    request<SMCOrderBlockResponse>(
+      `/api/v1/smc/${symbol}/order-blocks?timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`,
+    ),
+  getSmcLiquidity: (symbol: string, timeframe: string, limit = 20) =>
+    request<SMCLiquidityResponse>(
+      `/api/v1/smc/${symbol}/liquidity?timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`,
+    ),
+  getSmcFvg: (symbol: string, timeframe: string, limit = 20) =>
+    request<SMCFVGResponse>(
+      `/api/v1/smc/${symbol}/fvg?timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`,
+    ),
+  getSupportResistance: (symbol: string, timeframe: string) =>
+    request<SupportResistanceResponse>(
+      `/api/v1/support-resistance/${symbol}?timeframe=${encodeURIComponent(timeframe)}`,
+    ),
+  getFibonacci: (symbol: string, timeframe: string) =>
+    request<FibonacciResponse>(
+      `/api/v1/fibonacci/${symbol}?timeframe=${encodeURIComponent(timeframe)}`,
+    ),
 
   /* Indicators */
   getIndicators: (symbol: string, timeframe: string, limit = 100) =>

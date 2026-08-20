@@ -10,6 +10,9 @@ import CurrencyStrengthWidget from '@/components/widgets/CurrencyStrengthWidget'
 import OpenOpportunitiesWidget from '@/components/widgets/OpenOpportunitiesWidget';
 import TradeJournalWidget from '@/components/widgets/TradeJournalWidget';
 import PerformanceWidget from '@/components/widgets/PerformanceWidget';
+import LiveTicksWidget from '@/components/widgets/LiveTicksWidget';
+import SMCWidget from '@/components/widgets/SMCWidget';
+import FibonacciWidget from '@/components/widgets/FibonacciWidget';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { formatSymbolLabel } from '@/components/widgets/LivePricesWidget';
 
@@ -67,6 +70,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* P1 row — Live Ticks, SMC Structures, Fibonacci */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
+            <div className="min-h-[400px]">
+              <LiveTicksWidget />
+            </div>
+            <div className="min-h-[400px]">
+              <SMCWidget />
+            </div>
+            <div className="min-h-[400px]">
+              <FibonacciWidget />
+            </div>
+          </div>
           {/* Row 4 — Trade Journal (full width) */}
           <div className="mb-4 min-h-[320px]">
             <TradeJournalWidget />

@@ -5,6 +5,7 @@ import {
   formatPercent,
   formatCurrency,
   formatDateTime,
+  formatTime,
   parseNumber,
   sanitizeInputNumber,
 } from '@/lib/format';
@@ -109,5 +110,18 @@ describe('sanitizeInputNumber', () => {
 
   it('leaves negative numbers untouched', () => {
     expect(sanitizeInputNumber('-3')).toBe('-3');
+  });
+});
+describe('formatTime', () => {
+  it('formats an ISO timestamp as HH:MM:SS', () => {
+    expect(formatTime('2026-08-16T14:32:05.584Z')).toBe('14:32:05');
+  });
+  it('returns an em dash for null/empty input', () => {
+    expect(formatTime(null)).toBe('—');
+    expect(formatTime(undefined)).toBe('—');
+    expect(formatTime('')).toBe('—');
+  });
+  it('returns an em dash for invalid input', () => {
+    expect(formatTime('not-a-date')).toBe('—');
   });
 });

@@ -40,6 +40,14 @@ export function formatDateTime(iso: string | null): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+/** Time-only format for tick tables (e.g. 14:32:05). Returns '—' for invalid input. */
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 
 /** Parse a numeric string, returning null when invalid/empty. */
 export function parseNumber(value: string): number | null {
