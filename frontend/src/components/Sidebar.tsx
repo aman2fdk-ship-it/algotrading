@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'ai-analysis', label: 'AI Analysis', icon: '🤖' },
@@ -10,19 +10,28 @@ const navItems = [
   { id: 'alerts', label: 'Alerts', icon: '🔔' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
-
+// Nav items that navigate to a real route (all others remain placeholder buttons).
+const NAV_ROUTES: Record<string, string> = {
+  dashboard: '/dashboard',
+  'ai-analysis': '/signals',
+  backtesting: '/signals',
+};
 export default function Sidebar() {
   const [activeId, setActiveId] = useState('dashboard');
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
-
+  const navigate = useNavigate();
+  const handleNav = (id: string) => {
+    const route = NAV_ROUTES[id];
+    if (route) {
+      navigate(route);
+      return;
+    }
+    setActiveId(id);
+  };
   return (
     <aside
-      className={`
-        h-screen sticky top-0 flex flex-col bg-forex-surface/80 backdrop-blur-xl
-        border-r border-forex-border transition-all duration-300
-        ${collapsed ? 'w-[72px]' : 'w-[240px]'}
-      `}
+      className={`h-screen sticky top-0 flex flex-col bg-forex-surface/80 backdrop-blur-xl border-r border-forex-border transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[240px]'}`}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-forex-border">
@@ -35,13 +44,12 @@ export default function Sidebar() {
           </span>
         )}
       </div>
-
       {/* Nav items */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveId(item.id)}
+            onClick={() => handleNav(item.id)}
             className={`sidebar-link w-full text-left ${activeId === item.id ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
             title={collapsed ? item.label : undefined}
           >
@@ -50,7 +58,6 @@ export default function Sidebar() {
           </button>
         ))}
       </nav>
-
       {/* User + collapse toggle */}
       <div className="border-t border-forex-border p-3">
         {!collapsed && user && (

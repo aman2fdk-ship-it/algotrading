@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://forexai:forexai_secret@postgres:5432/forexai"
     DATABASE_URL_SYNC: str = "postgresql://forexai:forexai_secret@postgres:5432/forexai"
     REDIS_URL: str = "redis://redis:6379/0"
+    # Redis caching
+    REDIS_CACHE_ENABLED: bool = True
+    REDIS_CACHE_TTL_S: int = 30
 
     # Auth
     JWT_SECRET: str = "dev-secret-key-change-in-production"

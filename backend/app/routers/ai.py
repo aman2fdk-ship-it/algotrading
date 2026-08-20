@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.config import settings
 from app.models.ai_recommendation import AIRecommendation
 from app.repositories.indicator_repository import IndicatorRepository
 from app.repositories.smc_repository import SMCRepository
@@ -22,6 +23,7 @@ from app.schemas.ai import (
     TimeframeScoreDetail,
 )
 from app.services.ai_decision import AIDecisionService
+from app.services.cache import redis_cache
 from app.services.mt5_client import SUPPORTED_SYMBOLS
 from app.utils.dependencies import get_current_user
 
@@ -32,11 +34,14 @@ router = APIRouter(prefix="/api/v1", tags=["ai"])
 
 def _build_service(db: AsyncSession) -> AIDecisionService:
     """Construct an AIDecisionService with real repositories."""
+    cache = redis_cache if settings.REDIS_CACHE_ENABLED else None
     return AIDecisionService(
         indicator_repo=IndicatorRepository(db),
         smc_repo=SMCRepository(db),
         candle_repo=CandleRepository(db),
         recommendation_repo=AIRecommendationRepository(db),
+        cache=cache,
+        cache_ttl=settings.REDIS_CACHE_TTL_S,
     )
 
 
