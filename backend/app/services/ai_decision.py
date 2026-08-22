@@ -23,6 +23,28 @@ from app.repositories.ai_recommendation_repo import AIRecommendationRepository
 
 logger = logging.getLogger(__name__)
 
+
+def _opt_float(value) -> float | None:
+    """Coerce an optional numeric value to float, tolerating None."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _opt_datetime(value) -> datetime | None:
+    """Coerce an optional datetime/ISO-string to datetime, tolerating None."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return None
+
 # ── Configuration Constants ─────────────────────────────────────────────────────
 
 ALL_TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
@@ -118,15 +140,101 @@ class AIDecisionService:
         smc_repo: SMCRepository,
         candle_repo: CandleRepository,
         recommendation_repo: AIRecommendationRepository | None = None,
+        cache: "RedisCache | None" = None,
+        cache_ttl: int | None = None,
     ) -> None:
         self._indicator_repo = indicator_repo
         self._smc_repo = smc_repo
         self._candle_repo = candle_repo
         self._recommendation_repo = recommendation_repo
+        self._cache = cache
+        self._cache_ttl = cache_ttl
 
     # ── Public API ──────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _cache_key(symbol: str) -> str:
+        return f"ai:decision:{symbol.upper()}"
+
     async def analyze(self, symbol: str) -> DecisionResult:
+        """Return a trading decision, using a short-TTL cache when available.
+
+        The analysis is expensive (scans every timeframe and runs many DB
+        queries), so repeated requests for the same symbol within the TTL reuse
+        the cached result.  If Redis is down/disabled the cache degrades to a
+        miss and we compute fresh — a Redis outage never blocks or errors.
+        """
+        symbol = symbol.upper()
+        cache_key = self._cache_key(symbol)
+
+        cached = await self._cache_get(cache_key)
+        if cached is not None:
+            logger.info("AI decision cache HIT for %s", symbol)
+            return cached
+
+        result = await self._run_analysis(symbol)
+        await self._cache_set(cache_key, result)
+        return result
+
+    async def _cache_get(self, key: str) -> DecisionResult | None:
+        if self._cache is None:
+            return None
+        try:
+            data = await self._cache.get_json(key)
+        except Exception:  # graceful fallback — never crash the request
+            return None
+        if not isinstance(data, dict):
+            return None
+        try:
+            return DecisionResult(
+                symbol=data["symbol"],
+                decision=data["decision"],
+                confidence=float(data["confidence"]),
+                entry_price=_opt_float(data.get("entry_price")),
+                stop_loss=_opt_float(data.get("stop_loss")),
+                take_profit_1=_opt_float(data.get("take_profit_1")),
+                take_profit_2=_opt_float(data.get("take_profit_2")),
+                risk_reward_ratio=_opt_float(data.get("risk_reward_ratio")),
+                trend=data.get("trend", "Ranging"),
+                market_bias=data.get("market_bias", "Neutral"),
+                risk_level=data.get("risk_level", "Medium"),
+                reasoning=data.get("reasoning", ""),
+                timeframe_scores={
+                    str(k): float(v) for k, v in (data.get("timeframe_scores") or {}).items()
+                },
+                timeframe_details=data.get("timeframe_details") or [],
+                created_at=_opt_datetime(data.get("created_at")),
+            )
+        except (KeyError, TypeError, ValueError):
+            logger.warning("AI decision cache value malformed for %s; recomputing.", key)
+            return None
+
+    async def _cache_set(self, key: str, result: DecisionResult) -> None:
+        if self._cache is None:
+            return
+        payload = {
+            "symbol": result.symbol,
+            "decision": result.decision,
+            "confidence": result.confidence,
+            "entry_price": result.entry_price,
+            "stop_loss": result.stop_loss,
+            "take_profit_1": result.take_profit_1,
+            "take_profit_2": result.take_profit_2,
+            "risk_reward_ratio": result.risk_reward_ratio,
+            "trend": result.trend,
+            "market_bias": result.market_bias,
+            "risk_level": result.risk_level,
+            "reasoning": result.reasoning,
+            "timeframe_scores": result.timeframe_scores,
+            "timeframe_details": result.timeframe_details,
+            "created_at": result.created_at.isoformat() if result.created_at else None,
+        }
+        try:
+            await self._cache.set_json(key, payload, ttl=self._cache_ttl)
+        except Exception:  # graceful fallback — never crash the request
+            logger.warning("AI decision cache write failed for %s; skipping.", key)
+
+    async def _run_analysis(self, symbol: str) -> DecisionResult:
         """Run full multi-timeframe analysis and return a trading decision."""
         tf_results: list[TimeframeScore] = []
 

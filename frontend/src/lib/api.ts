@@ -512,6 +512,19 @@ export const api = {
 
   getBacktestRun: (runId: string) =>
     request<BacktestResultResponse>(`/api/v1/backtest/runs/${runId}`),
+
+  runBacktest: (params: {
+    symbol: string;
+    timeframe: string;
+    start_date: string;
+    end_date: string;
+    initial_balance: number;
+    risk_percentage: number;
+  }) =>
+    request<BacktestResultResponse>('/api/v1/backtest/run', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 };
 
 export { ApiError };

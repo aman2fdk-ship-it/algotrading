@@ -443,14 +443,15 @@ async def test_indicators_latest_returns_indicator_data(
 
 
 @pytest.mark.asyncio
-async def test_indicators_latest_no_data_returns_404(
+async def test_indicators_latest_no_data_returns_empty_indicator(
     client: AsyncClient, auth_headers: dict
 ):
-    """Supported symbol with no indicator data returns 404."""
+    """Supported symbol with no indicator data returns 200 with a null indicator."""
     response = await client.get(
         "/api/v1/indicators/EURUSD/latest?timeframe=H1", headers=auth_headers
     )
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["indicator"] is None
 
 
 @pytest.mark.asyncio

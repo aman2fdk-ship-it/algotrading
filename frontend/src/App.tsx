@@ -3,8 +3,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
+import SignalDashboardPage from './pages/SignalDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
-
 export default function App() {
   return (
     <Routes>
@@ -12,10 +12,18 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
-        path="/dashboard/*"
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/signals"
+        element={
+          <ProtectedRoute>
+            <SignalDashboardPage />
           </ProtectedRoute>
         }
       />
