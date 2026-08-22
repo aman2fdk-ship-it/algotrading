@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { api, ApiError, type RecommendationResponse, type BacktestRunSummary, type BacktestResultResponse, type DecisionResult } from '@/lib/api';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboard, type SymbolCode } from '@/contexts/DashboardContext';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import { WidgetCard, WidgetSkeleton, ErrorState, EmptyState, cn, MiniBar } from '@/components/widgets/shared';
@@ -242,7 +242,7 @@ export default function SignalDashboardPage() {
                       <span className="text-[10px] text-forex-text-muted uppercase">Symbol</span>
                       <input
                         value={btSymbol}
-                        onChange={(e) => setBtSymbol(e.target.value.toUpperCase())}
+                        onChange={(e) => setBtSymbol(e.target.value.toUpperCase() as SymbolCode)}
                         className="glass-input w-full mt-1"
                         placeholder="EURUSD"
                       />

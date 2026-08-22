@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import SignalDashboardPage from '@/pages/SignalDashboardPage';
 import { DashboardProvider } from '@/contexts/DashboardContext';
-import { api, ApiError } from '@/lib/api';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { api, ApiError, type RecommendationResponse } from '@/lib/api';
 
 vi.mock('react-hot-toast', () => ({ default: { error: vi.fn(), success: vi.fn() } }));
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -30,7 +31,7 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-const rec = {
+const rec: RecommendationResponse = {
   id: 'r1',
   symbol: 'EURUSD',
   decision: 'BUY',
@@ -70,11 +71,13 @@ const run = {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <DashboardProvider>
-        <Routes>
-          <Route path="/" element={<SignalDashboardPage />} />
-        </Routes>
-      </DashboardProvider>
+      <AuthProvider>
+        <DashboardProvider>
+          <Routes>
+            <Route path="/" element={<SignalDashboardPage />} />
+          </Routes>
+        </DashboardProvider>
+      </AuthProvider>
     </MemoryRouter>,
   );
 }
