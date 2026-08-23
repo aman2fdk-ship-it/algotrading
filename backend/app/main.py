@@ -30,35 +30,34 @@ async def lifespan(app: FastAPI):
     # Seed symbols
     await _seed_symbols()
 
-    # Connect MT5
-    mt5_client = None
-    if settings.MT5_ENABLED:
-        from app.services.mt5_client import get_mt5_client
-        mt5_client = get_mt5_client()
-        try:
-            connected = await mt5_client.connect(
-                path=settings.MT5_PATH,
-                login=settings.MT5_LOGIN,
-                password=settings.MT5_PASSWORD,
-                server=settings.MT5_SERVER,
-            )
-            if connected:
-                logger.info("MT5 connected successfully")
-            else:
-                logger.warning("MT5 connection failed — background services will retry")
-        except Exception as e:
-            logger.error(f"MT5 connection error: {e}")
+    # Connect the market-data provider (mock fallback when nothing configured)
+    provider = None
+    from app.services.market_data_provider import get_market_data_provider
+    provider = get_market_data_provider()
+    try:
+        connected = await provider.connect(
+            path=settings.MT5_PATH,
+            login=settings.MT5_LOGIN,
+            password=settings.MT5_PASSWORD,
+            server=settings.MT5_SERVER,
+        )
+        if connected:
+            logger.info("Market data provider connected successfully")
+        else:
+            logger.warning("Market data provider connection failed — background services will retry")
+    except Exception as e:
+        logger.error(f"Market data provider connection error: {e}")
 
     # Start background services
-    await _start_background_services(mt5_client)
+    await _start_background_services(provider)
 
     yield
 
     # Shutdown
     await _stop_background_services()
-    if mt5_client:
+    if provider:
         try:
-            await mt5_client.disconnect()
+            await provider.disconnect()
         except Exception:
             pass
     await engine.dispose()

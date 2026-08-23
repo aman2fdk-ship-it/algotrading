@@ -30,7 +30,8 @@ from app.schemas.market_data import (
     MarketStatusListResponse,
 )
 from app.utils.dependencies import get_current_user
-from app.services.mt5_client import get_mt5_client, MT5ClientProtocol, SUPPORTED_SYMBOLS, SUPPORTED_TIMEFRAMES
+from app.services.market_data_provider import get_market_data_provider, MarketDataProvider
+from app.services.mt5_client import SUPPORTED_SYMBOLS, SUPPORTED_TIMEFRAMES
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +40,14 @@ router = APIRouter(prefix="/api/v1", tags=["market-data"])
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
-def _get_mt5() -> MT5ClientProtocol:
-    """Get the current MT5 client with error handling."""
+def _get_provider() -> MarketDataProvider:
+    """Get the current market-data provider with error handling."""
     try:
-        return get_mt5_client()
+        return get_market_data_provider()
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"MT5 service unavailable: {e}",
+            detail=f"Market data service unavailable: {e}",
         )
 
 
@@ -79,10 +80,10 @@ async def get_account(
 
     if account is None:
         # Try to fetch from MT5 live
-        mt5 = _get_mt5()
-        if await mt5.is_connected():
+        provider = _get_provider()
+        if await provider.is_connected():
             try:
-                acct_data = await mt5.get_account_info()
+                acct_data = await provider.get_account_info()
                 account = await repo.upsert_account(
                     balance=acct_data.balance,
                     equity=acct_data.equity,
@@ -119,10 +120,10 @@ async def get_broker(
     broker = await repo.get_latest()
 
     if broker is None:
-        mt5 = _get_mt5()
-        if await mt5.is_connected():
+        provider = _get_provider()
+        if await provider.is_connected():
             try:
-                broker_data = await mt5.get_broker_info()
+                broker_data = await provider.get_broker_info()
                 broker = await repo.upsert_broker(
                     name=broker_data.name,
                     server=broker_data.server,
@@ -162,10 +163,10 @@ async def get_price(
 
     if latest is None:
         # Try live MT5
-        mt5 = _get_mt5()
-        if await mt5.is_connected():
+        provider = _get_provider()
+        if await provider.is_connected():
             try:
-                get_current = getattr(mt5, "get_current_tick", None)
+                get_current = getattr(provider, "get_current_tick", None)
                 if callable(get_current):
                     tick_data = await get_current(symbol)
                     if tick_data:
@@ -220,10 +221,10 @@ async def get_candles(
 
     if not candles:
         # Try fetching from MT5 live
-        mt5 = _get_mt5()
-        if await mt5.is_connected():
+        provider = _get_provider()
+        if await provider.is_connected():
             try:
-                mt5_candles = await mt5.fetch_candles(symbol, timeframe, limit)
+                mt5_candles = await provider.fetch_candles(symbol, timeframe, limit)
                 if mt5_candles:
                     from app.models.candle import Candle
                     db_candles = [

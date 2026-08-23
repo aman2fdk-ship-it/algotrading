@@ -26,6 +26,20 @@ class Settings(BaseSettings):
     MT5_PASSWORD: str | None = None  # Optional: account password
     MT5_SERVER: str | None = None  # Optional: broker server
 
+    # Market Data Provider (pluggable source)
+    #   auto (default) -> OANDA if creds present, else MT5 path if MT5_ENABLED,
+    #                     else mock; "oanda" | "mt5" | "mock" pick explicitly.
+    MARKET_DATA_PROVIDER: str = "auto"
+
+    # OANDA practice-style REST feed (env-driven only; no secrets committed).
+    # When OANDA_API_KEY/OANDA_ACCOUNT_ID are absent the factory degrades to mock.
+    OANDA_API_KEY: str | None = None
+    OANDA_ACCOUNT_ID: str | None = None
+    OANDA_ENV: str = "practice"  # practice|live (demo vs production account)
+    OANDA_BASE_URL: str | None = None  # overrides host from OANDA_ENV when set
+    OANDA_TIMEOUT_S: float = 10.0
+    OANDA_REQUEST_DELAY_S: float = 0.0  # optional rate-limit sleep between calls
+
     # Background Services
     TICK_COLLECTOR_ENABLED: bool = True
     CANDLE_SYNC_ENABLED: bool = True
