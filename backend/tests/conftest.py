@@ -13,6 +13,20 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiters():
+    """Clear in-process auth rate-limiter buckets before every test.
+
+    Without this, the shared module-level limiters would carry hits over from
+    one test into the next (tests share a single fake client IP), causing
+    spurious 429s unrelated to the case under test.
+    """
+    from app.utils.ratelimit import reset_rate_limiters
+    reset_rate_limiters()
+    yield
+
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
     """Create and drop all tables before and after each test using SQLite."""

@@ -1,8 +1,10 @@
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.config import settings
+from app.utils.ratelimit import ip_key, login_limiter, register_limiter, refresh_limiter
 
 from app.database import get_db
 from app.models.user import User
@@ -29,9 +31,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _raise_rate_limited() -> None:
+    """Raise a standard 429 Too Many Requests with a clear message."""
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many requests. Please slow down and try again later.",
+        headers={"Retry-After": str(int(settings.AUTH_RATE_LIMIT_WINDOW_SECONDS))},
+    )
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Register a new user account."""
+async def register(
+    request: UserRegisterRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Register a new user account (rate-limited per IP + per email)."""
+    key = ip_key(http_request)
+    if not register_limiter.allow(f"ip:{key}"):
+        _raise_rate_limited()
+    if not register_limiter.allow(f"email:{request.email.lower()}"):
+        _raise_rate_limited()
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == request.email))
     if result.scalar_one_or_none() is not None:
@@ -57,8 +77,17 @@ async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: UserLoginRequest, db: AsyncSession = Depends(get_db)):
-    """Authenticate and return tokens."""
+async def login(
+    request: UserLoginRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Authenticate and return tokens (rate-limited per IP + per account)."""
+    key = ip_key(http_request)
+    if not login_limiter.allow(f"ip:{key}"):
+        _raise_rate_limited()
+    if not login_limiter.allow(f"acct:{request.email.lower()}"):
+        _raise_rate_limited()
     result = await db.execute(select(User).where(User.email == request.email))
     user = result.scalar_one_or_none()
 
@@ -102,8 +131,11 @@ async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Dep
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: RefreshTokenRequest):
-    """Exchange a refresh token for new access + refresh tokens."""
+async def refresh_token(request: RefreshTokenRequest, http_request: Request):
+    """Exchange a refresh token for new access + refresh tokens (rate-limited)."""
+    key = ip_key(http_request)
+    if not refresh_limiter.allow(f"ip:{key}"):
+        _raise_rate_limited()
     try:
         payload = decode_token(request.refresh_token)
         if payload.get("type") != "refresh":
