@@ -12,6 +12,7 @@ from app.database import async_session
 from app.models.tick import Tick
 from app.repositories.tick_repository import TickRepository
 from app.services.mt5_client import MT5ClientProtocol, SUPPORTED_SYMBOLS, TickData
+from app.services.observability import metrics
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,8 @@ class LiveTickCollector:
                         if tick:
                             tick_batch.append(tick)
                             self._stats["received"] += 1
+                            # Heartbeat for the observability feed-status panel.
+                            metrics.touch_feed()
                     except Exception as e:
                         logger.error(f"Error fetching tick for {symbol}: {e}")
                         self._stats["errors"] += 1

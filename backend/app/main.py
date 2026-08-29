@@ -1,10 +1,13 @@
 import logging
+import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.routers import auth_router, market_data_router, indicators_router, smc_router, ai_router, risk_router, backtest_router
+from app.routers.health import router as health_router
+from app.services.observability import metrics
 
 logging.basicConfig(
     level=logging.INFO,
@@ -200,8 +203,25 @@ app.include_router(smc_router)
 app.include_router(ai_router)
 app.include_router(risk_router)
 app.include_router(backtest_router)
+app.include_router(health_router)
+
+
+@app.middleware("http")
+async def observability_middleware(request: Request, call_next):
+    """Record per-request latency and HTTP status into the metrics store."""
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        # Count server errors even when the exception is not converted to a 5xx
+        metrics.record_request((time.perf_counter() - start) * 1000.0, 500)
+        raise
+    metrics.record_request((time.perf_counter() - start) * 1000.0, response.status_code)
+    return response
 
 
 @app.get("/health")
 async def health_check():
+    # Stable liveness URL kept identical to the pre-observability contract
+    # (test_e2e_api asserts status == "healthy").
     return {"status": "healthy", "service": "forexai-terminal-backend", "version": "0.2.0"}
