@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 # Cap the number of latency samples kept for average/percentile calculations so
@@ -35,7 +35,7 @@ class Metrics:
     """Process-local metrics/event store used by the observability surface."""
 
     def __init__(self) -> None:
-        self._lock = Lock()
+        self._lock = RLock()
         self.requests_total = 0
         self.api_errors_4xx = 0
         self.api_errors_5xx = 0
