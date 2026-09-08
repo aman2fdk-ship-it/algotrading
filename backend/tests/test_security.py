@@ -70,9 +70,12 @@ def _prod_settings(**overrides) -> Settings:
         "short",  # below MIN_PRODUCTION_SECRET_LENGTH
     ],
 )
-def test_production_requires_real_jwt_secret(secret):
-    # Pass JWT_SECRET explicitly in every case: None is treated by the helper as
-    # "not provided at all" (falls back to the dev placeholder), not as a value.
+def test_production_requires_real_jwt_secret(secret, monkeypatch):
+    # Delete ambient JWT_SECRET so the None case ("not provided at all") falls
+    # back to the dev placeholder deterministically instead of inheriting a
+    # real secret from the shell env (e.g. staging env files). Explicit secrets
+    # passed as kwargs already override env, so this only affects the None path.
+    monkeypatch.delenv("JWT_SECRET", raising=False)
     with pytest.raises(ValueError, match="JWT_SECRET"):
         _prod_settings(JWT_SECRET=secret)
 
