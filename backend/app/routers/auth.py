@@ -26,13 +26,20 @@ from app.utils.security import (
     decode_token,
 )
 from app.utils.dependencies import get_current_user
+from app.services.observability import metrics
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _record_auth_failure() -> None:
+    """Bump the observability counter for a failed authentication event."""
+    metrics.record_auth_failure()
+
+
 def _raise_rate_limited() -> None:
     """Raise a standard 429 Too Many Requests with a clear message."""
+    _record_auth_failure()
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         detail="Too many requests. Please slow down and try again later.",
@@ -55,6 +62,7 @@ async def register(
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == request.email))
     if result.scalar_one_or_none() is not None:
+        _record_auth_failure()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists",
@@ -92,12 +100,14 @@ async def login(
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(request.password, user.hashed_password):
+        _record_auth_failure()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
     if not user.is_active:
+        _record_auth_failure()
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive",
@@ -139,14 +149,17 @@ async def refresh_token(request: RefreshTokenRequest, http_request: Request):
     try:
         payload = decode_token(request.refresh_token)
         if payload.get("type") != "refresh":
+            _record_auth_failure()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type",
             )
         user_id = payload.get("sub")
         if user_id is None:
+            _record_auth_failure()
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     except ValueError as e:
+        _record_auth_failure()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),

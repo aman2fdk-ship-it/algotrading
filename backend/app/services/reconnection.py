@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.services.mt5_client import MT5ClientProtocol
+from app.services.observability import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +83,14 @@ class ReconnectionManager:
                         logger.info(
                             f"MT5 connection restored after {self._consecutive_failures} failures"
                         )
+                        metrics.record_feed_recovery()
+                    metrics.touch_feed()
                     self._consecutive_failures = 0
                     self._last_connected = datetime.now(timezone.utc)
                 else:
                     self._consecutive_failures += 1
                     self._total_disconnections += 1
+                    metrics.record_feed_interruption()
                     logger.warning(
                         f"MT5 connection lost (failure {self._consecutive_failures}/{self._max_retries})"
                     )
@@ -121,6 +125,8 @@ class ReconnectionManager:
             connected = await self._client.connect()
             if connected:
                 logger.info("MT5 reconnected successfully")
+                metrics.record_feed_recovery()
+                metrics.touch_feed()
                 self._consecutive_failures = 0
                 self._last_connected = datetime.now(timezone.utc)
             else:
