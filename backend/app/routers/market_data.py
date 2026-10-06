@@ -127,7 +127,7 @@ async def get_broker(
                 broker = await repo.upsert_broker(
                     name=broker_data.name,
                     server=broker_data.server,
-                    timezone=broker_data.timezone,
+                    broker_timezone=broker_data.timezone,
                     regulation=broker_data.regulation,
                 )
                 await db.commit()
