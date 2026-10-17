@@ -23,7 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.services.health import readiness_snapshot
+from app.services.health import _redis_client_kwargs, readiness_snapshot
 from app.services.observability import Metrics
 
 # A stable origin in the default CORS allow-list (see app/config.py).
@@ -224,3 +224,103 @@ async def test_readiness_degrades_then_restores(redis_client):
     assert restored["components"]["database"]["status"] == "ok"
     assert restored["components"]["redis"]["status"] == "ok"
     assert restored["status"] == "ok"
+
+
+# ── Redis DSN handling: TLS readiness regression ────────────────────────────────
+# Regression: check_redis() used to build its client from host/port/password/db
+# only, so a managed ``rediss://`` DSN (TLS — what Upstash and most managed Redis
+# providers hand out) was dialled in plaintext.  The PING then failed against the
+# TLS-only endpoint, /health/ready reported Redis as "down", and the hosting
+# platform's readiness probe would restart-loop a perfectly healthy service.
+# These tests pin the DSN -> client mapping (unit level, no network) plus the
+# readiness path that regressed.
+
+@pytest.mark.asyncio
+async def test_redis_client_kwargs_use_tls_for_rediss_url():
+    kwargs = _redis_client_kwargs("rediss://default:s3cr3t@managed-redis.example:6380/0")
+    assert kwargs["ssl"] is True
+    assert kwargs["host"] == "managed-redis.example"
+    assert kwargs["port"] == 6380
+    assert kwargs["username"] == "default"
+    assert kwargs["password"] == "s3cr3t"
+    assert kwargs["db"] == 0
+
+
+@pytest.mark.asyncio
+async def test_redis_client_kwargs_stay_plain_for_redis_url():
+    kwargs = _redis_client_kwargs("redis://127.0.0.1:6379/2")
+    assert "ssl" not in kwargs
+    assert "username" not in kwargs
+    assert kwargs["host"] == "127.0.0.1"
+    assert kwargs["db"] == 2
+
+
+class _FakeRedisClient:
+    """Async-Redis stand-in that records the kwargs it was constructed with."""
+
+    instances: list["_FakeRedisClient"] = []
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.closed = False
+        _FakeRedisClient.instances.append(self)
+
+    async def ping(self):
+        return True
+
+    async def aclose(self):
+        self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_check_redis_uses_tls_and_succeeds_for_rediss_url(monkeypatch):
+    import redis.asyncio as aioredis
+    from app.services.health import check_redis
+
+    _FakeRedisClient.instances.clear()
+    monkeypatch.setattr(aioredis, "Redis", _FakeRedisClient)
+
+    result = await check_redis("rediss://default:topsecret@managed-redis.example:6380/0")
+
+    assert result["status"] == "ok"
+    client = _FakeRedisClient.instances[-1]
+    assert client.kwargs["ssl"] is True
+    assert client.kwargs["username"] == "default"
+    assert client.closed is True
+    # The no-secret-leak invariant holds on the TLS path too.
+    payload = json.dumps(result)
+    assert "managed-redis.example" not in payload
+    assert "topsecret" not in payload
+
+
+@pytest.mark.asyncio
+async def test_check_redis_stays_plain_for_redis_url(monkeypatch):
+    import redis.asyncio as aioredis
+    from app.services.health import check_redis
+
+    _FakeRedisClient.instances.clear()
+    monkeypatch.setattr(aioredis, "Redis", _FakeRedisClient)
+
+    result = await check_redis("redis://127.0.0.1:6379/0")
+
+    assert result["status"] == "ok"
+    client = _FakeRedisClient.instances[-1]
+    assert "ssl" not in client.kwargs
+    assert "username" not in client.kwargs
+
+
+@pytest.mark.asyncio
+async def test_readiness_reports_redis_ok_for_rediss_url(monkeypatch):
+    """End of the chain: a TLS DSN must no longer drag Redis status to "down"."""
+    import redis.asyncio as aioredis
+
+    _FakeRedisClient.instances.clear()
+    monkeypatch.setattr(aioredis, "Redis", _FakeRedisClient)
+    engine = create_async_engine("sqlite+aiosqlite:///./test.db")
+    report = await readiness_snapshot(
+        engine=engine,
+        redis_url="rediss://default:topsecret@managed-redis.example:6380/0",
+    )
+    await engine.dispose()
+    assert report["components"]["redis"]["status"] == "ok"
+    assert _FakeRedisClient.instances[-1].kwargs["ssl"] is True
