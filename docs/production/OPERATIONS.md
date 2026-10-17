@@ -329,7 +329,7 @@ Signals available today (in-process, no external monitoring configured yet):
 | The incident started within ~30 min of a deploy and the previous revision was healthy | **Roll back the app first** (Render redeploy / Vercel promote). Fastest, lowest risk. Do **not** downgrade the DB unless the new code wrote an incompatible schema change |
 | A migration just ran and the schema is suspect | stop traffic to the new revision, snapshot, inspect `alembic_version`; restore to a scratch DB to compare before touching production |
 | Only the market-data feed is broken | **Fail open**: keep serving; confirm the mock fallback is active; the API must stay 200 |
-| Only Redis is down (cache) | keep serving (graceful degradation) and fix Redis; expect `/health/ready` 503 — see the TLS gap (§8.1) if the DSN is `rediss://` |
+| Only Redis is down (cache) | keep serving (graceful degradation) and fix Redis; expect `/health/ready` 503 — TLS DSNs are handled (§8.1, fixed) |
 | Authentication or a security control is failing | **Fail closed**: block the affected path, rotate the secret, invalidate sessions; never "temporarily fix" auth |
 | Data may be corrupted | stop writes immediately, snapshot the current state, then restore per §4.3 |
 | Cause unknown and impact is contained | prefer a careful forward fix over a blind rollback; keep the evidence |
@@ -347,7 +347,7 @@ Signals available today (in-process, no external monitoring configured yet):
   (`pool_size=20`, `max_overflow=10` per instance) and provider status. A wrong DSN after a secret
   rotation is the most common self-inflicted cause.
 - **Redis down / readiness 503 (S2).** `redis-cli -u "$REDIS_URL" PING`. If the DSN is `rediss://`,
-  apply the fix in §8.1 before concluding Redis is broken. Cache loss is harmless; do not restore a
+  the probe already enables TLS for `rediss://` (§8.1), so treat it as a real outage. Cache loss is harmless; do not restore a
   cache.
 - **Market-data feed interrupted (S2/S3).** `components.market_data` + `feed_interruptions` /
   `feed_recoveries` counters. Check broker demo credentials, quota and provider status. The app is
@@ -384,14 +384,19 @@ preflight have caught this? If yes, add the check there (that is how `ssl` vs `s
 These are honest, verified observations from the current code and the staging runs. Items 1–3 are
 **code/infra follow-ups** that should block the first production deploy or be explicitly accepted.
 
-1. **Readiness probe ignores TLS on `rediss://` (blocking for Upstash).**
-   `app/services/health.py::check_redis` builds its client from `urlparse(REDIS_URL)` host/port/
-   password/db **without** `ssl`, so a TLS DSN reports `redis: down`, `/health/ready` returns **503**,
-   and a platform health check would restart-loop the service. The request path is unaffected
-   (`app/services/cache.py` uses `redis.asyncio.from_url`, which understands `rediss://`), and the
-   app itself keeps working; readiness is simply wrong. Fix: enable TLS for `rediss://` in
-   `check_redis` (pass `ssl=True` / use `from_url`) plus a unit test; the deploy script warns until
-   then. Until it is fixed, do not put a `rediss://` DSN behind a `healthCheckPath=/health/ready`.
+1. **Readiness probe TLS on `rediss://` — FIXED (PR #19).** `check_redis` used to build its Redis
+   client from `urlparse(REDIS_URL)` host/port/password/db **without** `ssl`, so a TLS DSN reported
+   `redis: down`, `/health/ready` returned **503**, and a platform health check would restart-loop a
+   healthy service. `_redis_client_kwargs()` in `app/services/health.py` now maps the DSN onto client
+   kwargs: `rediss://` ⇒ `ssl=True`, `redis://` stays plaintext, and an ACL `username` (upstash's
+   `default`) is forwarded when the URL carries one. Host/port/password/db handling is unchanged and
+   the endpoint still returns neither the URL nor any credential. Covered by five unit tests in
+   `backend/tests/test_observability.py` (`test_redis_client_kwargs_use_tls_for_rediss_url`,
+   `test_redis_client_kwargs_stay_plain_for_redis_url`,
+   `test_check_redis_uses_tls_and_succeeds_for_rediss_url`, `test_check_redis_stays_plain_for_redis_url`,
+   `test_readiness_reports_redis_ok_for_rediss_url`). A `rediss://` DSN is now safe behind
+   `healthCheckPath=/health/ready` — confirm the component reads `ok` right after a TLS deploy.
+
 2. **Rate limiting is per-process** (`app/utils/ratelimit.py`): limits are not shared across instances
    and reset on restart. Keep one backend instance, or move the limiter to Redis before scaling out.
 3. **Metrics are in-process**: they reset on restart and are not aggregated across instances. Fine for

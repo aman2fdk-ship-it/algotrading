@@ -201,7 +201,7 @@ check_redis_url() {
   local u="${REDIS_URL:-}"
   if [ -z "$u" ]; then bad "REDIS_URL is not set"; return; fi
   case "$u" in
-    rediss://*) warn "REDIS_URL uses TLS (rediss://) — check_redis() cannot probe TLS yet, so /health/ready may return 503. See OPERATIONS.md §8.1 (code fix required)" ;;
+    rediss://*) ok "REDIS_URL uses TLS (rediss://) — the readiness probe enables TLS for rediss DSNs (OPERATIONS.md §8.1, fixed)" ;;
     redis://*) ;;
     *) bad "REDIS_URL must start with redis:// or rediss://" ;;
   esac

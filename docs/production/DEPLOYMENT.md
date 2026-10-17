@@ -177,7 +177,7 @@ Two guards from `backend/app/config.py` gate startup and are worth knowing befor
 > platform health check fail and restart-loop the service. The API itself stays up (the cache layer
 > degrades gracefully by design), but readiness is wrong. Fix options and the exact code seam are in
 > [`OPERATIONS.md`](OPERATIONS.md) §8 (Known gaps). `--preflight` warns when `REDIS_URL` starts with
-> `rediss://`. Treat this as a **code fix required before/at first production deploy**.
+> `rediss://`. Fixed in PR #19: `check_redis` now enables TLS for `rediss://`; re-check `/health/ready` after the deploy.
 
 ### 4.3 Render — backend container
 
@@ -367,7 +367,7 @@ Interpretation:
 |---|---|---|
 | `/health/live` 200, `/health/ready` 503 | core dependency down (API/database/redis) | triage DB then Redis (`OPERATIONS.md` §7) |
 | `/health/ready` 200 with `market_data: degraded` | feed problem only — by design not fatal | check broker credentials/quota; mock fallback is active |
-| `/health/ready` 503 with `redis: down` on a `rediss://` DSN | readiness probe TLS gap (§4.2) | apply the code fix in `OPERATIONS.md` §8 |
+| `/health/ready` 503 with `redis: down` on a `rediss://` DSN | readiness probe TLS gap (§4.2) | fixed in PR #19 (`check_redis` enables TLS for `rediss://`); redeploy and re-check `/health/ready` |
 | `/health/metrics` shows rising `api_errors_5xx` / `auth_failures` | application-level problem, not infrastructure | §7 incident runbook |
 
 ---

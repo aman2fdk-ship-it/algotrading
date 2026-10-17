@@ -63,6 +63,37 @@ async def check_database(engine=None) -> dict[str, Any]:
         }
 
 
+def _redis_client_kwargs(url: str) -> dict[str, Any]:
+    """Translate a Redis DSN into ``redis.asyncio.Redis`` keyword arguments.
+
+    Managed Redis providers (Upstash, Redis Cloud, Elasticache) hand out a
+    ``rediss://`` URL, which means "TLS in use".  Building the client from
+    host/port alone silently connects in plaintext, so the PING never gets an
+    answer from a TLS-only endpoint: readiness then reports Redis as down and
+    the platform health check restart-loops a perfectly healthy service.
+
+    ``redis://`` keeps the historical plaintext behaviour, and an ACL
+    ``username`` (Upstash DSNs usually carry ``default``) is forwarded when the
+    URL has one.  Only individual connection parameters are returned -- the DSN
+    itself is never stored or returned, so readiness output stays secret-free.
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    kwargs: dict[str, Any] = {
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 6379,
+        "password": parsed.password,
+        "db": int((parsed.path or "/0").lstrip("/") or 0),
+        "socket_timeout": 2,
+    }
+    if parsed.username:
+        kwargs["username"] = parsed.username
+    if (parsed.scheme or "").lower() == "rediss":
+        kwargs["ssl"] = True
+    return kwargs
+
+
 async def check_redis(url: str | None = None) -> dict[str, Any]:
     """Probe Redis connectivity with an authenticated PING.
 
@@ -76,16 +107,9 @@ async def check_redis(url: str | None = None) -> dict[str, Any]:
     if not url:
         return {"status": "down", "detail": "Redis not configured", "latency_ms": _fmt_latency(start)}
     try:
-        from urllib.parse import urlparse
         import redis.asyncio as aioredis
-        parsed = urlparse(url)
-        client = aioredis.Redis(
-            host=parsed.hostname or "localhost",
-            port=parsed.port or 6379,
-            password=parsed.password,
-            db=int((parsed.path or "/0").lstrip("/") or 0),
-            socket_timeout=2,
-        )
+
+        client = aioredis.Redis(**_redis_client_kwargs(url))
         try:
             pong = await client.ping()
         finally:
